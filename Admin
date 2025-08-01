@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Panel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+        }
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+            margin-bottom: 30px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #252525;
+        }
+        tr:hover {
+            background-color: #333;
+        }
+        button {
+            padding: 6px 12px;
+            margin: 2px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .allow-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .deny-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        .delete-btn {
+            background-color: #ff9800;
+            color: white;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 15px;
+            background-color: #252525;
+            border-radius: 8px;
+        }
+        .bulk-form {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        .bulk-form select, .bulk-form input {
+            padding: 8px;
+            background-color: #333;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 4px;
+            min-width: 200px;
+        }
+        .bulk-form button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+        }
+        .message-form {
+            margin-top: 20px;
+        }
+        .message-form textarea {
+            width: 100%;
+            padding: 10px;
+            background-color: #333;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 4px;
+            min-height: 100px;
+            margin-bottom: 10px;
+        }
+        .message-form button {
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+        }
+        .status-completed {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .status-pending {
+            color: #FFC107;
+            font-weight: bold;
+        }
+        .status-rejected {
+            color: #f44336;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Admin Wallet Control</h1>
+        
+        <!-- Users Section -->
+        <div class="section">
+            <h2>Registered Users</h2>
+            <table id="usersTable">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Registered Date</th>
+                        <th>Deposit Coins</th>
+                        <th>Winning Coins</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="usersList">
+                    <script>
+                        // Initialize data if not exists
+                        if(!localStorage.getItem('users')) {
+                            localStorage.setItem('users', JSON.stringify([]));
+                        }
+                        if(!localStorage.getItem('adminData')) {
+                            localStorage.setItem('adminData', JSON.stringify({
+                                users: [],
+                                depositRequests: [],
+                                withdrawalRequests: [],
+                                messages: []
+                            }));
+                        }
+                        
+                        // Load users data
+                        var users = JSON.parse(localStorage.getItem('users'));
+                        var adminData = JSON.parse(localStorage.getItem('adminData'));
+                        
+                        // Display users
+                        adminData.users.forEach(function(user) {
+                            var fullUser = users.find(function(u) { return u.username === user.username; }) || {};
+                            document.write(`
+                                <tr>
+                                    <td>${user.username}</td>
+                                    <td>${user.email}</td>
+                                    <td>${user.registeredDate}</td>
+                                    <td>${fullUser.depositCoin || 0}</td>
+                                    <td>${fullUser.winningCoin || 0}</td>
+                                    <td>
+                                        <button class="delete-btn" onclick="
+                                            if(confirm('Delete ${user.username}?')) {
+                                                var adminData = JSON.parse(localStorage.getItem('adminData'));
+                                                var users = JSON.parse(localStorage.getItem('users'));
+                                                
+                                                adminData.users = adminData.users.filter(u => u.username !== '${user.username}');
+                                                adminData.depositRequests = adminData.depositRequests.filter(r => r.username !== '${user.username}');
+                                                adminData.withdrawalRequests = adminData.withdrawalRequests.filter(r => r.username !== '${user.username}');
+                                                
+                                                users = users.filter(u => u.username !== '${user.username}');
+                                                
+                                                localStorage.setItem('adminData', JSON.stringify(adminData));
+                                                localStorage.setItem('users', JSON.stringify(users));
+                                                location.reload();
+                                            }
+                                        ">Delete</button>
+                                    </td>
+                                </tr>
+                            `);
+                        });
+                    </script>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Deposit Requests Section -->
+        <div class="section">
+            <h2>Deposit Requests</h2>
+            <table id="depositRequestsTable">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Amount</th>
+                        <th>Date</th>
+                        <th>Proof</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="depositRequestsList">
+                    <script>
+                        // Load deposit requests
+                        var adminData = JSON.parse(localStorage.getItem('adminData'));
+                        
+                        adminData.depositRequests
+                            .filter(req => req.status === 'pending')
+                            .forEach(function(request, index) {
+                                document.write(`
+                                    <tr>
+                                        <td>${request.username}</td>
+                                        <td>${request.amount}</td>
+                                        <td>${request.date}</td>
+                                        <td>${request.proof}</td>
+                                        <td class="status-pending">${request.status}</td>
+                                        <td>
+                                            <button class="allow-btn" onclick="
+                                                var adminData = JSON.parse(localStorage.getItem('adminData'));
+                                                var users = JSON.parse(localStorage.getItem('users'));
+                                                
+                                                var userIndex = users.findIndex(u => u.username === '${request.username}');
+                                                if(userIndex !== -1) {
+                                                    users[userIndex].depositCoin = (users[userIndex].depositCoin || 0) + ${request.amount};
+                                                    users[userIndex].transactions.unshift({
+                                                        type: 'Deposit',
+                                                        amount: ${request.amount},
+                                                        date: new Date().toLocaleString(),
+                                                        status: 'completed'
+                                                    });
+                                                    
+                                                    adminData.depositRequests[${index}].status = 'completed';
+                                                    
+                                                    var adminUserIndex = adminData.users.findIndex(u => u.username === '${request.username}');
+                                                    if(adminUserIndex !== -1) {
+                                                        adminData.users[adminUserIndex].depositCoin = users[userIndex].depositCoin;
+                                                    }
+                                                    
+                                                    localStorage.setItem('users', JSON.stringify(users));
+                                                    localStorage.setItem('adminData', JSON.stringify(adminData));
+                                                    alert('Deposit approved! Coins added to user wallet.');
+                                                    location.reload();
+                                                } else {
+                                                    alert('User not found!');
+                                                }
+                                            ">Approve</button>
+                                            <button class="deny-btn" onclick="
+                                                var adminData = JSON.parse(localStorage.getItem('adminData'));
+                                                var users = JSON.parse(localStorage.getItem('users'));
+                                                
+                                                adminData.depositRequests[${index}].status = 'rejected';
+                                                
+                                                var userIndex = users.findIndex(u => u.username === '${request.username}');
+                                                if(userIndex !== -1) {
+                                                    users[userIndex].transactions.unshift({
+                                                        type: 'Deposit Request',
+                                                        amount: ${request.amount},
+                                                        date: new Date().toLocaleString(),
+                                                        status: 'rejected'
+                                                    });
+                                                    localStorage.setItem('users', JSON.stringify(users));
+                                                }
+                                                
+                                                localStorage.setItem('adminData', JSON.stringify(adminData));
+                                                alert('Deposit rejected!');
+                                                location.reload();
+                                            ">Reject</button>
+                                        </td>
+                                    </tr>
+                                `);
+                            });
+                    </script>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Withdrawal Requests Section -->
+        <div class="section">
+            <h2>Withdrawal Requests</h2>
+            <table id="withdrawalRequestsTable">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Amount</th>
+                        <th>UPI ID</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="withdrawalRequestsList">
+                    <script>
+                        // Load withdrawal requests
+                        var adminData = JSON.parse(localStorage.getItem('adminData'));
+                        
+                        adminData.withdrawalRequests
+                            .filter(req => req.status === 'pending')
+                            .forEach(function(request, index) {
+                                document.write(`
+                                    <tr>
+                                        <td>${request.username}</td>
+                                        <td>${request.amount}</td>
+                                        <td>${request.upiId}</td>
+                                        <td>${request.date}</td>
+                                        <td class="status-pending">${request.status}</td>
+                                        <td>
+                                            <button class="allow-btn" onclick="
+                                                var adminData = JSON.parse(localStorage.getItem('adminData'));
+                                                var users = JSON.parse(localStorage.getItem('users'));
+                                                
+                                                var userIndex = users.findIndex(u => u.username === '${request.username}');
+                                                if(userIndex !== -1) {
+                                                    if(users[userIndex].winningCoin >= ${request.amount}) {
+                                                        users[userIndex].winningCoin = (users[userIndex].winningCoin || 0) - ${request.amount};
+                                                        users[userIndex].transactions.unshift({
+                                                            type: 'Withdrawal',
+                                                            amount: ${request.amount},
+                                                            date: new Date().toLocaleString(),
+                                                            status: 'completed'
+                                                        });
+                                                        
+                                                        adminData.withdrawalRequests[${index}].status = 'completed';
+                                                        
+                                                        var adminUserIndex = adminData.users.findIndex(u => u.username === '${request.username}');
+                                                        if(adminUserIndex !== -1) {
+                                                            adminData.users[adminUserIndex].winningCoin = users[userIndex].winningCoin;
+                                                        }
+                                                        
+                                                        localStorage.setItem('users', JSON.stringify(users));
+                                                        localStorage.setItem('adminData', JSON.stringify(adminData));
+                                                        alert('Withdrawal approved! Coins deducted from user wallet.');
+                                                        location.reload();
+                                                    } else {
+                                                        alert('User doesn\\'t have enough coins!');
+                                                    }
+                                                } else {
+                                                    alert('User not found!');
+                                                }
+                                            ">Approve</button>
+                                            <button class="deny-btn" onclick="
+                                                var adminData = JSON.parse(localStorage.getItem('adminData'));
+                                                var users = JSON.parse(localStorage.getItem('users'));
+                                                
+                                                adminData.withdrawalRequests[${index}].status = 'rejected';
+                                                
+                                                var userIndex = users.findIndex(u => u.username === '${request.username}');
+                                                if(userIndex !== -1) {
+                                                    users[userIndex].transactions.unshift({
+                                                        type: 'Withdrawal Request',
+                                                        amount: ${request.amount},
+                                                        date: new Date().toLocaleString(),
+                                                        status: 'rejected'
+                                                    });
+                                                    localStorage.setItem('users', JSON.stringify(users));
+                                                }
+                                                
+                                                localStorage.setItem('adminData', JSON.stringify(adminData));
+                                                alert('Withdrawal rejected!');
+                                                location.reload();
+                                            ">Reject</button>
+                                        </td>
+                                    </tr>
+                                `);
+                            });
+                    </script>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Bulk Edit Section -->
+        <div class="section">
+            <h2>Bulk Actions</h2>
+            <form class="bulk-form" onsubmit="
+                var action = document.getElementById('bulkAction').value;
+                var amount = parseFloat(document.getElementById('bulkAmount').value);
+                var userSelect = document.getElementById('bulkUserSelect').value;
+                
+                if(!action || isNaN(amount) || amount <= 0 || !userSelect) {
+                    alert('Please fill all fields with valid values!');
+                    return false;
+                }
+                
+                var adminData = JSON.parse(localStorage.getItem('adminData'));
+                var users = JSON.parse(localStorage.getItem('users'));
+                
+                var usersToUpdate = [];
+                
+                if(userSelect === 'all') {
+                    usersToUpdate = [...users];
+                } else {
+                    var user = users.find(u => u.username === userSelect);
+                    if(user) {
+                        usersToUpdate.push(user);
+                    }
+                }
+                
+                if(usersToUpdate.length === 0) {
+                    alert('No users selected!');
+                    return false;
+                }
+                
+                usersToUpdate.forEach(function(user) {
+                    var userIndex = users.findIndex(u => u.username === user.username);
+                    
+                    if(userIndex !== -1) {
+                        if(action === 'addDeposit') {
+                            users[userIndex].depositCoin = (users[userIndex].depositCoin || 0) + amount;
+                            
+                            users[userIndex].transactions.unshift({
+                                type: 'Admin Deposit',
+                                amount: amount,
+                                date: new Date().toLocaleString(),
+                                status: 'completed'
+                            });
+                        } else if(action === 'addWinning') {
+                            users[userIndex].winningCoin = (users[userIndex].winningCoin || 0) + amount;
+                            
+                            users[userIndex].transactions.unshift({
+                                type: 'Admin Winning',
+                                amount: amount,
+                                date: new Date().toLocaleString(),
+                                status: 'completed'
+                            });
+                        }
+                    }
+                });
+                
+                localStorage.setItem('users', JSON.stringify(users));
+                
+                adminData.users.forEach(function(adminUser) {
+                    var user = users.find(u => u.username === adminUser.username);
+                    if(user) {
+                        adminUser.depositCoin = user.depositCoin;
+                        adminUser.winningCoin = user.winningCoin;
+                    }
+                });
+                
+                localStorage.setItem('adminData', JSON.stringify(adminData));
+                
+                alert('Bulk update completed successfully!');
+                location.reload();
+                return false;
+            ">
+                <select id="bulkAction" required>
+                    <option value="">Select Action</option>
+                    <option value="addDeposit">Add Deposit Coins</option>
+                    <option value="addWinning">Add Winning Coins</option>
+                </select>
+                <input type="number" id="bulkAmount" placeholder="Amount" min="1" required>
+                <select id="bulkUserSelect" required>
+                    <option value="">Select User</option>
+                    <option value="all">All Users</option>
+                    <script>
+                        // Populate user select
+                        var adminData = JSON.parse(localStorage.getItem('adminData'));
+                        adminData.users.forEach(function(user) {
+                            document.write(`<option value="${user.username}">${user.username}</option>`);
+                        });
+                    </script>
+                </select>
+                <button type="submit">Apply</button>
+            </form>
+            
+            <!-- Bulk Message Section -->
+            <div class="message-form">
+                <h3>Send Message to Users</h3>
+                <textarea id="messageContent" placeholder="Type your message here..." required></textarea>
+                <select id="messageRecipients">
+                    <option value="all">All Users</option>
+                    <option value="selected">Selected Users</option>
+                </select>
+                <button onclick="
+                    var message = document.getElementById('messageContent').value;
+                    var recipients = document.getElementById('messageRecipients').value;
+                    
+                    if(!message) {
+                        alert('Please enter a message!');
+                        return;
+                    }
+                    
+                    var adminData = JSON.parse(localStorage.getItem('adminData'));
+                    
+                    if(!adminData.messages) {
+                        adminData.messages = [];
+                    }
+                    
+                    adminData.messages.push({
+                        content: message,
+                        date: new Date().toLocaleString(),
+                        recipients: recipients === 'all' ? 'All Users' : 'Selected Users'
+                    });
+                    
+                    localStorage.setItem('adminData', JSON.stringify(adminData));
+                    alert('Message sent successfully!');
+                    document.getElementById('messageContent').value = '';
+                ">Send Message</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
